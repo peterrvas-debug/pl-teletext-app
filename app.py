@@ -7,23 +7,30 @@ from datetime import datetime
 import streamlit.components.v1 as components 
 
 
-# --- KONFIGURÁCIA API ---
-# ⚠️ SEM VLOŽ SVOJ SKUTOČNÝ TOKEN
+# --- KONFIGURÁCIA API (zostáva rovnaká) ---
 API_TOKEN = "65aeeede221f46a08321266a69dee512" 
 BASE_URL = "https://api.football-data.org/v4/"
-COMPETITION_ID = "PL"  # Kód pre Premier League
+COMPETITION_ID = "PL"  
 
-
-# --- JAVASCRIPT PRE ZATVORENIE SIDEBARU ---
-# Toto je robustný skript cielený na Streamlit DOM
+# --- JAVASCRIPT PRE ZATVORENIE SIDEBARU (Simulácia ESC) ---
+# Simulácia stlačenia klávesy ESC v rodičovskom okne, ktorá zatvorí sidebar.
 JS_CLOSE_SIDEBAR = """
 <script>
-    // Používame setTimeout, aby sa skript spustil po dokončení vykresľovania Streamlitom
+    // Dôležité: Používame setTimeout, aby sa kód spustil po dokončení vykresľovania.
     setTimeout(function() {
-        const closeButton = window.parent.document.querySelector('button[aria-label="Close sidebar"]');
-        if (closeButton) {
-            closeButton.click();
-        }
+        const parentWindow = window.parent || window;
+        
+        // Simulácia stlačenia klávesy ESC (keyCode 27)
+        const event = new KeyboardEvent('keydown', {
+            key: 'Escape',
+            keyCode: 27,
+            code: 'Escape',
+            bubbles: true
+        });
+        
+        // Odoslanie udalosti klávesy do rodičovského okna/dokumentu
+        parentWindow.document.dispatchEvent(event);
+        
     }, 100); 
 </script>
 """
@@ -33,24 +40,20 @@ JS_CLOSE_SIDEBAR = """
 def close_sidebar_on_change():
     """
     Nastaví Query Parameter, ktorý signalizuje potrebu zatvoriť sidebar.
+    Použijeme to ako spúšťač pre JS injekciu po rerune.
     """
     # Použijeme hide_sidebar=true ako signál pre hlavnú aplikáciu
     st.experimental_set_query_params(hide_sidebar="true") 
 
 
-# --- 1. FUNKCIA PRE ZÍSKANIE DÁT Z API ---
+# --- OSTATNÉ FUNKCIE (Načítanie dát a CSS zostávajú rovnaké) ---
 
 @st.cache_data(ttl=3600) 
 def get_premier_league_matches(api_token: str):
-    """Načíta všetky zápasy aktuálnej sezóny Premier League z API."""
-    
+    # ... (logika načítania dát)
     endpoint = f"competitions/{COMPETITION_ID}/matches"
     url = BASE_URL + endpoint
-    # ... (ostatná logika načítania dát zostáva rovnaká)
-    headers = {
-        'X-Auth-Token': api_token
-    }
-
+    headers = {'X-Auth-Token': api_token}
     try:
         response = requests.get(url, headers=headers)
         response.raise_for_status() 
@@ -67,170 +70,88 @@ def get_premier_league_matches(api_token: str):
         return pd.DataFrame()
 
     df = pd.json_normalize(matches)
-    
-    # Extrahovanie a premenovanie dôležitých stĺpcov
     df_filtered = df[[
-        'matchday', 
-        'homeTeam.name', 
-        'awayTeam.name', 
-        'score.fullTime.home', 
-        'score.fullTime.away',
-        'status',
-        'utcDate'
+        'matchday', 'homeTeam.name', 'awayTeam.name', 'score.fullTime.home', 
+        'score.fullTime.away', 'status', 'utcDate'
     ]].copy()
-    
     df_filtered.columns = [
-        'Matchday', 
-        'Domáci Tím', 
-        'Hosťujúci Tím', 
-        'Domáci Gól', 
-        'Hosťujúci Gól',
-        'Status',
-        'Dátum'
+        'Matchday', 'Domáci Tím', 'Hosťujúci Tím', 'Domáci Gól', 
+        'Hosťujúci Gól', 'Status', 'Dátum'
     ]
-    
     df_filtered['Matchday'] = df_filtered['Matchday'].fillna(0).astype(int)
-    
     return df_filtered
 
-# --- 1.2. FUNKCIA PRE ZJEDNODUŠENIE NÁZVOV TÍMOV ---
-# (Kód zostáva rovnaký)
-
 def simplify_team_name(name: str) -> str:
-    """Odstráni bežné, redundantné frázy z názvov tímov pre úsporu miesta."""
-    
+    # ... (logika skracovania mien tímov)
     if "Manchester United" in name: return "Man Utd"
     if "Manchester City" in name: return "Man City"
     if "Tottenham Hotspur" in name: return "Spurs"
     if "Nottingham Forest" in name: return "Nott'm Forest"
     if "Wolverhampton Wanderers" in name: return "Wolves"
-    
     suffixes = [' FC', ' AFC', ' Athletic', ' Rovers', ' Wanderers', ' Town', ' City', ' United', ' Albion']
-    
     simple_name = name
     for suffix in suffixes:
         if simple_name.lower().endswith(suffix.lower()):
             simple_name = simple_name[:-len(suffix)].strip()
             if simple_name.startswith('AFC '):
                  simple_name = simple_name[4:].strip()
-            
     if ' & ' in simple_name:
         simple_name = simple_name.split(' & ')[0] 
-        
     return simple_name.strip()
-
-# --- 2. RETRO CSS ŠTÝL (FINÁLNA CENTRÁCIA A FIXY) ---
-# (Kód zostáva rovnaký)
 
 def load_retro_style():
     """Vloží vlastné CSS pre presný Ceefax vzhľad s vertikálnou centráciou a mobilnými fixmi."""
     st.markdown("""
         <style>
-        /* Načítanie Ceefax-like fontu */
         @font-face {
             font-family: 'Teletext-L';
             src: url('https://raw.githubusercontent.com/davidg/teletext-fonts/master/Teletext-L.woff2') format('woff2');
             font-weight: normal;
             font-style: normal;
         }
-        
         .stApp {
-            background-color: #000000; 
-            color: #FFFFFF;
-            font-family: 'Teletext-L', 'Courier New', monospace; 
-            line-height: 1.2; 
-            filter: brightness(1.2) contrast(1.1); 
-            text-shadow: 1px 1px 3px rgba(255, 255, 255, 0.4); 
-            
-            /* --- VERTKÁLNA CENTRÁCIA OBSAHU --- */
-            display: flex;
-            flex-direction: column;
-            justify-content: center; 
-            align-items: center;     
-            min-height: 100vh;       
+            background-color: #000000; color: #FFFFFF; font-family: 'Teletext-L', 'Courier New', monospace; line-height: 1.2; 
+            filter: brightness(1.2) contrast(1.1); text-shadow: 1px 1px 3px rgba(255, 255, 255, 0.4); 
+            display: flex; flex-direction: column; justify-content: center; align-items: center; min-height: 100vh;       
         }
-
-        /* --- AGRESÍVNY MOBILNÝ FIX: PADDINGY A OFFSET VRCHNEJ LIŠTY! --- */
         .block-container {
-            /* Offset pre Streamlit header (hore) a odstránenie ľavého/pravého paddingu */
-            padding-top: 40px !important; 
-            padding-bottom: 5px !important;
-            padding-left: 0px !important; 
-            padding-right: 0px !important; 
-            
-            min-width: unset !important;
-            max-width: 100% !important;
-            overflow-x: hidden; 
+            padding-top: 40px !important; padding-bottom: 5px !important; padding-left: 0px !important; 
+            padding-right: 0px !important; min-width: unset !important; max-width: 100% !important; overflow-x: hidden; 
         }
-
-        /* Všetky nadpisy v žltej */
         .stApp h1, .stApp h2, .stApp h3 {
-            color: #FFFF00; 
-            font-family: 'Teletext-L', 'Courier New', monospace;
-            border-bottom: 2px solid #FF00FF; 
-            padding-bottom: 2px;
-            margin-bottom: 5px;
-            text-align: center !important; 
-            max-width: 38ch; 
-            margin-left: auto;
-            margin-right: auto;
+            color: #FFFF00; font-family: 'Teletext-L', 'Courier New', monospace; border-bottom: 2px solid #FF00FF; 
+            padding-bottom: 2px; margin-bottom: 5px; text-align: center !important; max-width: 38ch; 
+            margin-left: auto; margin-right: auto;
         }
-
-        /* Kontajner pre výsledky (PEVNÁ ŠÍRKA A CENTRÁCIA) */
         .ceefax-results {
-            font-family: 'Teletext-L', 'Courier New', monospace;
-            font-size: 1.2em; 
-            line-height: 1.4;
-            max-width: 38ch; /* 38 znakov */
-            margin-left: auto;
-            margin-right: auto;
+            font-family: 'Teletext-L', 'Courier New', monospace; font-size: 1.2em; line-height: 1.4;
+            max-width: 38ch; margin-left: auto; margin-right: auto;
         }
-        
-        /* Každý riadok výsledkov */
-        .ceefax-results div {
-            white-space: pre; 
-            text-align: left; 
-        }
-
-        /* Ostatné prvky */
-        .stMarkdown div[data-testid^="stMarkdownContainer"] {
-             max-width: 38ch; 
-             margin-left: auto !important;
-             margin-right: auto !important;
-        }
+        .ceefax-results div { white-space: pre; text-align: left; }
+        .stMarkdown div[data-testid^="stMarkdownContainer"] { max-width: 38ch; margin-left: auto !important; margin-right: auto !important; }
         .stSidebar { background-color: #111111; }
         .ceefax-green { color: #00FF00; } 
         .ceefax-yellow { color: #FFFF00; } 
         </style>
     """, unsafe_allow_html=True)
 
-# --- 3. FUNKCIA PRE GENERÁCIU HTML TELETEXTU (ROZLOŽENIE NA 38ch) ---
-# (Kód zostáva rovnaký)
-
 def generate_ceefax_matches_html(df: pd.DataFrame) -> str:
-    """Generuje HTML kód pre teletextové zobrazenie zápasov s pevnou šírkou 38ch."""
-    
+    # ... (logika generovania HTML)
     WIDTH_TEAM_HOME = 14   
     WIDTH_SCORE = 3        
     MIN_GAP = 1            
     WIDTH_TEAM_AWAY = 19   
-    
     html_output = "<div class='ceefax-results'>"
-    
     for _, row in df.iterrows():
-        
         home_team_name = row['DOMÁCI TÍM']
         away_team_name = row['HOSŤUJÚCI TÍM']
         score_text = row['VÝSLEDOK']
         score_color_class = "ceefax-green" if row['Status'] == 'FINISHED' else "ceefax-red"
-        
         home_display = home_team_name[:WIDTH_TEAM_HOME].ljust(WIDTH_TEAM_HOME)
         score_display = score_text.center(WIDTH_SCORE) 
         away_display = away_team_name[:WIDTH_TEAM_AWAY].ljust(WIDTH_TEAM_AWAY)
-        
         GAP_1 = ' ' * MIN_GAP
         GAP_2 = ' ' * MIN_GAP
-        
         line = (
             f"<span class='ceefax-white'>{home_display}</span>"
             f"{GAP_1}"
@@ -238,9 +159,7 @@ def generate_ceefax_matches_html(df: pd.DataFrame) -> str:
             f"{GAP_2}"
             f"<span class='ceefax-yellow'>{away_display}</span>"
         )
-        
         html_output += f"<div>{line}</div>"
-        
     html_output += "</div>"
     return html_output
 
@@ -249,13 +168,13 @@ def generate_ceefax_matches_html(df: pd.DataFrame) -> str:
 st.set_page_config(page_title="PL Teletext Final", layout="wide")
 load_retro_style()
 
-# !!! NOVÁ LOGIKA PRE AUTOMATICKÉ ZATVORENIE SIDEBARU !!!
+# !!! NOVÁ LOGIKA PRE AUTOMATICKÉ ZATVORENIE SIDEBARU (Simulácia ESC) !!!
 query_params = st.experimental_get_query_params()
 if 'hide_sidebar' in query_params and query_params['hide_sidebar'][0] == 'true':
-    # 1. Injektuj robustný JavaScript pre zatvorenie
+    # 1. Injektuj robustný JavaScript pre zatvorenie pomocou ESC
     components.html(JS_CLOSE_SIDEBAR, height=0)
     
-    # 2. Odstráň príznak z URL pre čistotu (a aby sa to neopakovalo)
+    # 2. Odstráň príznak z URL
     new_params = query_params.copy()
     del new_params['hide_sidebar']
     st.experimental_set_query_params(**new_params)
@@ -284,7 +203,7 @@ with st.sidebar:
         matchdays,
         index=len(matchdays) - 1 if matchdays else 0,
         key="retro_select",
-        # Priradenie novej callback funkcie
+        # Priradenie callbacku, ktorý nastaví Query Parameter
         on_change=close_sidebar_on_change 
     )
     
