@@ -15,7 +15,7 @@ COMPETITION_ID = "PL"  # Kód pre Premier League
 @st.cache_data(ttl=3600) 
 def get_premier_league_matches(api_token: str):
     """Načíta všetky zápasy aktuálnej sezóny Premier League z API."""
-    # ... (Kód funkcie get_premier_league_matches zostáva rovnaký) ...
+    
     endpoint = f"competitions/{COMPETITION_ID}/matches"
     url = BASE_URL + endpoint
     
@@ -65,20 +65,17 @@ def get_premier_league_matches(api_token: str):
     
     return df_filtered
 
-# --- NOVÁ FUNKCIA PRE ZJEDNODUŠENIE NÁZVOV TÍMOV (Zostáva rovnaká) ---
+# --- FUNKCIA PRE ZJEDNODUŠENIE NÁZVOV TÍMOV ---
 
 def simplify_team_name(name: str) -> str:
-    """Odstráni bežné, redundantné frázy z názvov tímov (napr. FC, AFC, City, United)
-    pre úsporu miesta a zlepší čitateľnosť na mobile."""
+    """Odstráni bežné, redundantné frázy z názvov tímov pre úsporu miesta."""
     
-    # 1. Špecifické skratky
     if "Manchester United" in name: return "Man Utd"
     if "Manchester City" in name: return "Man City"
     if "Tottenham Hotspur" in name: return "Spurs"
     if "Nottingham Forest" in name: return "Nott'm Forest"
     if "Wolverhampton Wanderers" in name: return "Wolves"
     
-    # 2. Odstránenie bežných prípon
     suffixes = [' FC', ' AFC', ' Athletic', ' Rovers', ' Wanderers', ' Town', ' City', ' United', ' Albion']
     
     simple_name = name
@@ -88,18 +85,17 @@ def simplify_team_name(name: str) -> str:
             if simple_name.startswith('AFC '):
                  simple_name = simple_name[4:].strip()
             
-    # 3. Zjednodušenie špeciálnych znakov
     if ' & ' in simple_name:
         simple_name = simple_name.split(' & ')[0] 
         
     return simple_name.strip()
 
-# --- 2. RETRO CSS ŠTÝL (ZMENENÁ ŠÍRKA NA 38ch) ---
+# --- 2. RETRO CSS ŠTÝL (RESET PADDINGOV NA 0) ---
 def load_retro_style():
-    """Vloží vlastné CSS pre presný Ceefax vzhľad s maximálnou šírkou 38ch."""
+    """Vloží vlastné CSS pre presný Ceefax vzhľad s maximálnou šírkou 38ch a nulovými okrajmi."""
     st.markdown("""
         <style>
-        /* Načítanie Ceefax-like fontu z externého zdroja */
+        /* Načítanie Ceefax-like fontu */
         @font-face {
             font-family: 'Teletext-L';
             src: url('https://raw.githubusercontent.com/davidg/teletext-fonts/master/Teletext-L.woff2') format('woff2');
@@ -116,13 +112,13 @@ def load_retro_style():
             text-shadow: 1px 1px 3px rgba(255, 255, 255, 0.4); 
         }
 
-        /* --- AGRESÍVNY MOBILNÝ FIX --- */
+        /* --- AGRESÍVNY MOBILNÝ FIX: NULOVANIE PADDINGOV! --- */
         .block-container {
-            /* Minimalizujeme paddingy, aby sa obsah naozaj zmestil */
             padding-top: 5px !important;
             padding-bottom: 5px !important;
-            padding-left: 5px !important; 
-            padding-right: 5px !important; 
+            /* TU VYNÚTIME NULOVÝ PADDING */
+            padding-left: 0px !important; 
+            padding-right: 0px !important; 
             min-width: unset !important;
             max-width: 100% !important;
             overflow-x: hidden; 
@@ -136,7 +132,7 @@ def load_retro_style():
             padding-bottom: 2px;
             margin-bottom: 5px;
             text-align: center !important; 
-            max-width: 38ch; /* NOVÁ EXTRÉMNA ŠÍRKA */
+            max-width: 38ch; 
             margin-left: auto;
             margin-right: auto;
         }
@@ -146,7 +142,7 @@ def load_retro_style():
             font-family: 'Teletext-L', 'Courier New', monospace;
             font-size: 1.2em; 
             line-height: 1.4;
-            max-width: 38ch; /* ZMENA Z 40ch na 38ch */
+            max-width: 38ch; /* 38 znakov */
             margin-left: auto;
             margin-right: auto;
         }
@@ -159,7 +155,7 @@ def load_retro_style():
 
         /* Ostatné prvky */
         .stMarkdown div[data-testid^="stMarkdownContainer"] {
-             max-width: 38ch; /* NOVÁ EXTRÉMNA ŠÍRKA */
+             max-width: 38ch; 
              margin-left: auto !important;
              margin-right: auto !important;
         }
@@ -174,13 +170,11 @@ def load_retro_style():
 def generate_ceefax_matches_html(df: pd.DataFrame) -> str:
     """Generuje HTML kód pre teletextové zobrazenie zápasov s pevnou šírkou 38ch."""
     
-    # NOVÉ EXTRÉMNE MINIMALISTICKÉ ŠÍRKY (CELKOM 38 ZNAKOV)
+    # EXTRÉMNE MINIMALISTICKÉ ŠÍRKY (CELKOM 38 ZNAKOV)
     WIDTH_TEAM_HOME = 14   
     WIDTH_SCORE = 3        # Skóre v minimalistickom formáte: X-X
     MIN_GAP = 1            # Medzera len 1 znak
     WIDTH_TEAM_AWAY = 19   
-    
-    # Kontrola: 14 + 1 + 3 + 1 + 19 = 38
     
     html_output = "<div class='ceefax-results'>"
     
@@ -217,14 +211,15 @@ def generate_ceefax_matches_html(df: pd.DataFrame) -> str:
     html_output += "</div>"
     return html_output
 
-# --- 4. KONFIGURÁCIA A APLIKÁCIA ---
+# --- 4. KONFIGURÁCIA A APLIKÁCIA (ZMENA NADPISOV) ---
 
-st.set_page_config(page_title="PL Teletext Ultra Mobile 2", layout="wide")
+st.set_page_config(page_title="PL Teletext Final", layout="wide")
 load_retro_style()
 
-st.title("⚽ BBC FOOTBALL")
+# !!! ZMENENÉ NADPISY !!!
+st.title("⚽ PREMIER LEAGUE")
 st.markdown("---")
-st.markdown("## RESULTS SECTION 338")
+# Pôvodný st.markdown("## RESULTS SECTION 338") bol odstránený
 
 
 # Načítanie dát
@@ -248,7 +243,7 @@ with st.sidebar:
     st.caption("STRANA 338 | FOOTBALL-DATA.ORG")
 
 
-# --- 6. LOGIKA A ZOBRAZENIE ZÁPASOV (APLIKOVANÉ SKRÁTENIE NÁZVOV) ---
+# --- 6. LOGIKA A ZOBRAZENIE ZÁPASOV ---
 
 if selected_matchday:
     filtered_df = df_matches[df_matches['Matchday'] == selected_matchday].copy()
