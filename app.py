@@ -65,17 +65,19 @@ def get_premier_league_matches(api_token: str):
     
     return df_filtered
 
-# --- FUNKCIA PRE ZJEDNODUŠENIE NÁZVOV TÍMOV ---
+# --- 1.2. FUNKCIA PRE ZJEDNODUŠENIE NÁZVOV TÍMOV ---
 
 def simplify_team_name(name: str) -> str:
     """Odstráni bežné, redundantné frázy z názvov tímov pre úsporu miesta."""
     
+    # Špecifické skratky
     if "Manchester United" in name: return "Man Utd"
     if "Manchester City" in name: return "Man City"
     if "Tottenham Hotspur" in name: return "Spurs"
     if "Nottingham Forest" in name: return "Nott'm Forest"
     if "Wolverhampton Wanderers" in name: return "Wolves"
     
+    # Odstránenie bežných prípon
     suffixes = [' FC', ' AFC', ' Athletic', ' Rovers', ' Wanderers', ' Town', ' City', ' United', ' Albion']
     
     simple_name = name
@@ -85,14 +87,15 @@ def simplify_team_name(name: str) -> str:
             if simple_name.startswith('AFC '):
                  simple_name = simple_name[4:].strip()
             
+    # Zjednodušenie špeciálnych znakov
     if ' & ' in simple_name:
         simple_name = simple_name.split(' & ')[0] 
         
     return simple_name.strip()
 
-# --- 2. RETRO CSS ŠTÝL (FINÁLNA CENTRÁCIA) ---
+# --- 2. RETRO CSS ŠTÝL (FINÁLNA CENTRÁCIA A FIXY) ---
 def load_retro_style():
-    """Vloží vlastné CSS pre presný Ceefax vzhľad s vertikálnou centráciou."""
+    """Vloží vlastné CSS pre presný Ceefax vzhľad s vertikálnou centráciou a mobilnými fixmi."""
     st.markdown("""
         <style>
         /* Načítanie Ceefax-like fontu */
@@ -111,21 +114,19 @@ def load_retro_style():
             filter: brightness(1.2) contrast(1.1); 
             text-shadow: 1px 1px 3px rgba(255, 255, 255, 0.4); 
             
-            /* --- VERTKÁLNA CENTRÁCIA (NOVÉ) --- */
+            /* --- VERTKÁLNA CENTRÁCIA OBSAHU --- */
             display: flex;
             flex-direction: column;
-            justify-content: center; /* Vertikálne vystredenie obsahu */
-            align-items: center;     /* Horizontálne vystredenie obsahu */
-            min-height: 100vh;       /* Zaberá celú výšku obrazovky */
+            justify-content: center; 
+            align-items: center;     
+            min-height: 100vh;       
         }
 
-        /* --- AGRESÍVNY MOBILNÝ FIX: PADDINGY A ZAROVNANIE --- */
+        /* --- AGRESÍVNY MOBILNÝ FIX: NULOVANIE PADDINGOV A OFFSET VRCHNEJ LIŠTY! --- */
         .block-container {
-            /* Offset pre Streamlit header (hore) */
+            /* Offset pre Streamlit header (hore) a odstránenie ľavého/pravého paddingu */
             padding-top: 40px !important; 
             padding-bottom: 5px !important;
-            
-            /* Nulovanie horizontálnych paddingov */
             padding-left: 0px !important; 
             padding-right: 0px !important; 
             
@@ -143,7 +144,6 @@ def load_retro_style():
             margin-bottom: 5px;
             text-align: center !important; 
             max-width: 38ch; 
-            /* margin: auto už nepotrebujeme, pretože to zabezpečí flexbox, ale pre istotu ho necháme */
             margin-left: auto;
             margin-right: auto;
         }
@@ -153,7 +153,7 @@ def load_retro_style():
             font-family: 'Teletext-L', 'Courier New', monospace;
             font-size: 1.2em; 
             line-height: 1.4;
-            max-width: 38ch; 
+            max-width: 38ch; /* 38 znakov */
             margin-left: auto;
             margin-right: auto;
         }
@@ -183,7 +183,7 @@ def generate_ceefax_matches_html(df: pd.DataFrame) -> str:
     
     # EXTRÉMNE MINIMALISTICKÉ ŠÍRKY (CELKOM 38 ZNAKOV)
     WIDTH_TEAM_HOME = 14   
-    WIDTH_SCORE = 3        
+    WIDTH_SCORE = 3        # Skóre v minimalistickom formáte: X-X
     MIN_GAP = 1            
     WIDTH_TEAM_AWAY = 19   
     
@@ -227,7 +227,7 @@ def generate_ceefax_matches_html(df: pd.DataFrame) -> str:
 st.set_page_config(page_title="PL Teletext Final", layout="wide")
 load_retro_style()
 
-# Nadpis a oddeľovač
+# Nadpis (jediný hlavný)
 st.title("⚽ PREMIER LEAGUE")
 st.markdown("---")
 
@@ -255,7 +255,8 @@ with st.sidebar:
 # --- 6. LOGIKA A ZOBRAZENIE ZÁPASOV ---
 
 if selected_matchday:
-    filtered_df = df_matches[filtered_df['Matchday'] == selected_matchday].copy()
+    # OPRAVENÝ RIADOK (FIX NameError): Filtrujeme hlavný DataFrame (df_matches)
+    filtered_df = df_matches[df_matches['Matchday'] == selected_matchday].copy()
     
     # Aplikácia skracovania názvov
     filtered_df['Domáci Tím'] = filtered_df['Domáci Tím'].apply(simplify_team_name)
@@ -283,5 +284,5 @@ if selected_matchday:
     else:
         st.info(f"Pre Matchday {selected_matchday} neboli nájdené žiadne zápasy.")
 
-# --- 7. Footer ---
-# Footer je odstránený
+# --- 7. Footer (Odstránený) ---
+# st.markdown("---") a pätička bola odstránená
