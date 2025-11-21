@@ -10,12 +10,9 @@ API_TOKEN = "65aeeede221f46a08321266a69dee512"
 BASE_URL = "https://api.football-data.org/v4/"
 COMPETITION_ID = "PL"  # Kód pre Premier League
 
-# Ak si používaš Secret, použij toto namiesto pevného tokenu:
-# API_TOKEN = st.secrets.get("API_TOKEN", "TVOJ_DEFAULT_TOKEN_PRE_LOKAL")
-
 # --- 1. FUNKCIA PRE ZÍSKANIE DÁT Z API ---
 
-@st.cache_data(ttl=3600) # Cache dáta na 1 hodinu
+@st.cache_data(ttl=3600) 
 def get_premier_league_matches(api_token: str):
     """Načíta všetky zápasy aktuálnej sezóny Premier League z API."""
     
@@ -68,9 +65,11 @@ def get_premier_league_matches(api_token: str):
     
     return df_filtered
 
-# --- 2. RETRO CSS ŠTÝL (AGRESÍVNE RESETOVANIE PRE MOBIL) ---
+# --- 2. RETRO CSS ŠTÝL (ZMENENÁ ŠÍRKA NA 45ch) ---
 def load_retro_style():
-    """Vloží vlastné CSS pre presný Ceefax vzhľad s agresívnym resetovaním mobilných paddingov."""
+    """Vloží vlastné CSS pre presný Ceefax vzhľad s agresívnym resetovaním mobilných paddingov
+    a maximálnou šírkou 45ch pre režim na výšku.
+    """
     st.markdown("""
         <style>
         /* Načítanie Ceefax-like fontu z externého zdroja */
@@ -81,30 +80,24 @@ def load_retro_style():
             font-style: normal;
         }
         
-        /* Základné Ceefax nastavenia s CRT efektmi */
         .stApp {
-            background-color: #000000; /* Čierne pozadie */
+            background-color: #000000; 
             color: #FFFFFF;
             font-family: 'Teletext-L', 'Courier New', monospace; 
             line-height: 1.2; 
-            
-            /* CRT Efekty */
             filter: brightness(1.2) contrast(1.1); 
             text-shadow: 1px 1px 3px rgba(255, 255, 255, 0.4); 
         }
 
         /* --- AGRESÍVNY MOBILNÝ FIX --- */
-        /* Nulujeme paddingy hlavného kontajnera (blokového kontajnera) */
         .block-container {
             padding-top: 10px !important;
             padding-bottom: 10px !important;
-            padding-left: 10px !important; /* Minimum padding na okrajoch */
-            padding-right: 10px !important; /* Minimum padding na okrajoch */
-            
-            /* DÔLEŽITÉ: Streamlit má min-width nastavené v default CSS, ktoré ignorujeme */
+            padding-left: 10px !important; 
+            padding-right: 10px !important; 
             min-width: unset !important;
             max-width: 100% !important;
-            overflow-x: hidden; /* Skryť, ak by sa náhodou niečo pretlačilo */
+            overflow-x: hidden; 
         }
         /* --- KONIEC FIXU --- */
 
@@ -116,6 +109,9 @@ def load_retro_style():
             padding-bottom: 2px;
             margin-bottom: 5px;
             text-align: center !important; 
+            max-width: 45ch; /* NOVÁ ŠÍRKA */
+            margin-left: auto;
+            margin-right: auto;
         }
 
         /* Kontajner pre výsledky (PEVNÁ ŠÍRKA A CENTRÁCIA) */
@@ -123,7 +119,7 @@ def load_retro_style():
             font-family: 'Teletext-L', 'Courier New', monospace;
             font-size: 1.2em; 
             line-height: 1.4;
-            max-width: 90ch; /* Tvoja požadovaná šírka pre rozloženie */
+            max-width: 45ch; /* ZMENA Z 90ch na 45ch */
             margin-left: auto;
             margin-right: auto;
         }
@@ -134,21 +130,12 @@ def load_retro_style():
             text-align: left; 
         }
 
-        /* Farebné kódovanie */
+        /* Farebné kódovanie a Sidebar (bezo zmeny) */
         .ceefax-green { color: #00FF00; } 
-        .ceefax-red { color: #FF0000; } 
-        .ceefax-magenta { color: #FF00FF; }
-        .ceefax-white { color: #FFFFFF; } /* Domáci Tím */
-        .ceefax-yellow { color: #FFFF00; } /* Hosťujúci Tím */
-
-        /* Úprava sidebar (Menu) */
-        .stSidebar {
-            background-color: #111111; 
-        }
-        
-        /* Centrácia ostatných prvkov - zameriame ich na 90ch a centrujeme */
+        .ceefax-yellow { color: #FFFF00; } 
+        .stSidebar { background-color: #111111; }
         .stMarkdown div[data-testid^="stMarkdownContainer"] {
-             max-width: 90ch;
+             max-width: 45ch; /* NOVÁ ŠÍRKA */
              margin-left: auto !important;
              margin-right: auto !important;
         }
@@ -156,16 +143,22 @@ def load_retro_style():
         </style>
     """, unsafe_allow_html=True)
 
-# --- 3. FUNKCIA PRE GENERÁCIU HTML TELETEXTU ---
+# --- 3. FUNKCIA PRE GENERÁCIU HTML TELETEXTU (ZMENENÉ ROZLOŽENIE) ---
 
 def generate_ceefax_matches_html(df: pd.DataFrame) -> str:
-    """Generuje HTML kód pre teletextové zobrazenie zápasov s pevnou šírkou znakov
-    a minimálnymi medzerami.
-    """
+    """Generuje HTML kód pre teletextové zobrazenie zápasov s pevnou šírkou 45ch."""
     
-    WIDTH_TEAM = 30    
-    WIDTH_SCORE = 7    
-    MIN_GAP = 5        
+    # NOVÉ ŠÍRKY pre max 45 znakov:
+    # Domáci Tím: 18 znakov
+    # Medzera1: 2 znaky
+    # Skóre: 5 znakov (' X-X ')
+    # Medzera2: 2 znaky
+    # Hosťujúci Tím: 18 znakov
+    # Spolu: 18 + 2 + 5 + 2 + 18 = 45 znakov
+    
+    WIDTH_TEAM = 18    # Max 18 znakov pre názov tímu
+    WIDTH_SCORE = 5    # priestor pre skóre ' X-X '
+    MIN_GAP = 2        # Minimálna medzera 2 znaky
     
     html_output = "<div class='ceefax-results'>"
     
@@ -176,10 +169,16 @@ def generate_ceefax_matches_html(df: pd.DataFrame) -> str:
         score_text = row['VÝSLEDOK']
         score_color_class = "ceefax-green" if row['Status'] == 'FINISHED' else "ceefax-red"
         
-        home_display = home_team_name.ljust(WIDTH_TEAM)
-        score_display = score_text.center(WIDTH_SCORE) 
-        away_display = away_team_name.ljust(WIDTH_TEAM)
+        # 1. Domáci Tím (Biely) - Skrátime, ak je názov príliš dlhý
+        home_display = home_team_name[:WIDTH_TEAM].ljust(WIDTH_TEAM)
         
+        # 2. Skóre (Farebné) - vystredené
+        score_display = score_text.center(WIDTH_SCORE) 
+        
+        # 3. Hosťujúci Tím (Žltý) - Skrátime, ak je názov príliš dlhý
+        away_display = away_team_name[:WIDTH_TEAM].ljust(WIDTH_TEAM)
+        
+        # --- Vytvorenie Medzier ---
         GAP_1 = ' ' * MIN_GAP
         GAP_2 = ' ' * MIN_GAP
         
@@ -196,9 +195,9 @@ def generate_ceefax_matches_html(df: pd.DataFrame) -> str:
     html_output += "</div>"
     return html_output
 
-# --- 4. KONFIGURÁCIA A APLIKÁCIA (layout="wide" a CSS fixy) ---
+# --- 4. KONFIGURÁCIA A APLIKÁCIA ---
 
-st.set_page_config(page_title="PL Teletext V7 Final", layout="wide")
+st.set_page_config(page_title="PL Teletext Mobile", layout="wide")
 load_retro_style()
 
 st.title("⚽ BBC FOOTBALL")
@@ -234,7 +233,8 @@ if selected_matchday:
     
     def format_score(row):
         if row['Status'] == 'FINISHED':
-            return f"{int(row['Domáci Gól'])} - {int(row['Hosťujúci Gól'])}"
+            # Skrátime formát skóre na 'X-X' namiesto 'X - X', aby sme ušetrili miesto (5 znakov)
+            return f" {int(row['Domáci Gól'])}-{int(row['Hosťujúci Gól'])} "
         elif row['Status'] == 'SCHEDULED':
              return "NAPL" 
         return "N/A"
