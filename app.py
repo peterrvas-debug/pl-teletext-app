@@ -65,11 +65,42 @@ def get_premier_league_matches(api_token: str):
     
     return df_filtered
 
-# --- 2. RETRO CSS ŠTÝL (ZMENENÁ ŠÍRKA NA 45ch) ---
+# --- NOVÁ FUNKCIA PRE ZJEDNODUŠENIE NÁZVOV TÍMOV ---
+
+def simplify_team_name(name: str) -> str:
+    """Odstráni bežné, redundantné frázy z názvov tímov (napr. FC, AFC, City, United)
+    pre úsporu miesta a zlepší čitateľnosť na mobile."""
+    
+    # 1. Špecifické skratky pre Premier League (pretože inak by sa skrátili rovnako)
+    if "Manchester United" in name: return "Man Utd"
+    if "Manchester City" in name: return "Man City"
+    if "Tottenham Hotspur" in name: return "Spurs"
+    if "Nottingham Forest" in name: return "Nott'm Forest"
+    if "Wolverhampton Wanderers" in name: return "Wolves"
+    
+    # 2. Odstránenie bežných prípon a redundantných slov
+    suffixes = [' FC', ' AFC', ' Athletic', ' Rovers', ' Wanderers', ' Town', ' City', ' United', ' Albion']
+    
+    simple_name = name
+    for suffix in suffixes:
+        # POUŽÍVAME case-insensitive kontrolu (s lower() pre istotu, ak API vráti iné formáty)
+        if simple_name.lower().endswith(suffix.lower()):
+            # Odstránime príponu
+            simple_name = simple_name[:-len(suffix)].strip()
+            # Ak skrátený názov začína 'AFC ', odstránime aj to (napr. pre AFC Bournemouth)
+            if simple_name.startswith('AFC '):
+                 simple_name = simple_name[4:].strip()
+            
+    # 3. Zjednodušenie špeciálnych znakov
+    if ' & ' in simple_name:
+        # Brighton & Hove Albion -> Brighton
+        simple_name = simple_name.split(' & ')[0] 
+        
+    return simple_name.strip()
+
+# --- 2. RETRO CSS ŠTÝL (ZACHOVANÉ 40ch NA MOBIL) ---
 def load_retro_style():
-    """Vloží vlastné CSS pre presný Ceefax vzhľad s agresívnym resetovaním mobilných paddingov
-    a maximálnou šírkou 45ch pre režim na výšku.
-    """
+    """Vloží vlastné CSS pre presný Ceefax vzhľad s maximálnou šírkou 40ch."""
     st.markdown("""
         <style>
         /* Načítanie Ceefax-like fontu z externého zdroja */
@@ -99,7 +130,6 @@ def load_retro_style():
             max-width: 100% !important;
             overflow-x: hidden; 
         }
-        /* --- KONIEC FIXU --- */
 
         /* Všetky nadpisy v žltej */
         .stApp h1, .stApp h2, .stApp h3 {
@@ -109,7 +139,7 @@ def load_retro_style():
             padding-bottom: 2px;
             margin-bottom: 5px;
             text-align: center !important; 
-            max-width: 45ch; /* NOVÁ ŠÍRKA */
+            max-width: 40ch; 
             margin-left: auto;
             margin-right: auto;
         }
@@ -119,7 +149,7 @@ def load_retro_style():
             font-family: 'Teletext-L', 'Courier New', monospace;
             font-size: 1.2em; 
             line-height: 1.4;
-            max-width: 45ch; /* ZMENA Z 90ch na 45ch */
+            max-width: 40ch; 
             margin-left: auto;
             margin-right: auto;
         }
@@ -130,35 +160,28 @@ def load_retro_style():
             text-align: left; 
         }
 
-        /* Farebné kódovanie a Sidebar (bezo zmeny) */
-        .ceefax-green { color: #00FF00; } 
-        .ceefax-yellow { color: #FFFF00; } 
-        .stSidebar { background-color: #111111; }
+        /* Ostatné prvky */
         .stMarkdown div[data-testid^="stMarkdownContainer"] {
-             max-width: 45ch; /* NOVÁ ŠÍRKA */
+             max-width: 40ch; 
              margin-left: auto !important;
              margin-right: auto !important;
         }
-
+        .stSidebar { background-color: #111111; }
+        .ceefax-green { color: #00FF00; } 
+        .ceefax-yellow { color: #FFFF00; } 
         </style>
     """, unsafe_allow_html=True)
 
-# --- 3. FUNKCIA PRE GENERÁCIU HTML TELETEXTU (ZMENENÉ ROZLOŽENIE) ---
+# --- 3. FUNKCIA PRE GENERÁCIU HTML TELETEXTU (ROZLOŽENIE NA 40ch) ---
 
 def generate_ceefax_matches_html(df: pd.DataFrame) -> str:
-    """Generuje HTML kód pre teletextové zobrazenie zápasov s pevnou šírkou 45ch."""
+    """Generuje HTML kód pre teletextové zobrazenie zápasov s pevnou šírkou 40ch."""
     
-    # NOVÉ ŠÍRKY pre max 45 znakov:
-    # Domáci Tím: 18 znakov
-    # Medzera1: 2 znaky
-    # Skóre: 5 znakov (' X-X ')
-    # Medzera2: 2 znaky
-    # Hosťujúci Tím: 18 znakov
-    # Spolu: 18 + 2 + 5 + 2 + 18 = 45 znakov
-    
-    WIDTH_TEAM = 18    # Max 18 znakov pre názov tímu
-    WIDTH_SCORE = 5    # priestor pre skóre ' X-X '
-    MIN_GAP = 2        # Minimálna medzera 2 znaky
+    # EXTRÉMNE MINIMALISTICKÉ ŠÍRKY (CELKOM 40 ZNAKOV)
+    WIDTH_TEAM_HOME = 16   
+    WIDTH_SCORE = 3        # Skóre v minimalistickom formáte: X-X
+    MIN_GAP = 1            # Medzera len 1 znak
+    WIDTH_TEAM_AWAY = 19   
     
     html_output = "<div class='ceefax-results'>"
     
@@ -169,14 +192,14 @@ def generate_ceefax_matches_html(df: pd.DataFrame) -> str:
         score_text = row['VÝSLEDOK']
         score_color_class = "ceefax-green" if row['Status'] == 'FINISHED' else "ceefax-red"
         
-        # 1. Domáci Tím (Biely) - Skrátime, ak je názov príliš dlhý
-        home_display = home_team_name[:WIDTH_TEAM].ljust(WIDTH_TEAM)
+        # 1. Domáci Tím (Biely) - Skrátime a zarovnáme na 16 znakov
+        home_display = home_team_name[:WIDTH_TEAM_HOME].ljust(WIDTH_TEAM_HOME)
         
-        # 2. Skóre (Farebné) - vystredené
+        # 2. Skóre (Farebné) - vystredené (napr. '1-0')
         score_display = score_text.center(WIDTH_SCORE) 
         
-        # 3. Hosťujúci Tím (Žltý) - Skrátime, ak je názov príliš dlhý
-        away_display = away_team_name[:WIDTH_TEAM].ljust(WIDTH_TEAM)
+        # 3. Hosťujúci Tím (Žltý) - Skrátime a zarovnáme na 19 znakov
+        away_display = away_team_name[:WIDTH_TEAM_AWAY].ljust(WIDTH_TEAM_AWAY)
         
         # --- Vytvorenie Medzier ---
         GAP_1 = ' ' * MIN_GAP
@@ -197,7 +220,7 @@ def generate_ceefax_matches_html(df: pd.DataFrame) -> str:
 
 # --- 4. KONFIGURÁCIA A APLIKÁCIA ---
 
-st.set_page_config(page_title="PL Teletext Mobile", layout="wide")
+st.set_page_config(page_title="PL Teletext Ultra Mobile", layout="wide")
 load_retro_style()
 
 st.title("⚽ BBC FOOTBALL")
@@ -226,15 +249,19 @@ with st.sidebar:
     st.caption("STRANA 338 | FOOTBALL-DATA.ORG")
 
 
-# --- 6. LOGIKA A ZOBRAZENIE ZÁPASOV ---
+# --- 6. LOGIKA A ZOBRAZENIE ZÁPASOV (APLIKOVANÉ SKRÁTENIE NÁZVOV) ---
 
 if selected_matchday:
     filtered_df = df_matches[df_matches['Matchday'] == selected_matchday].copy()
     
+    # !!! Aplikácia novej funkcie skracovania názvov !!!
+    filtered_df['Domáci Tím'] = filtered_df['Domáci Tím'].apply(simplify_team_name)
+    filtered_df['Hosťujúci Tím'] = filtered_df['Hosťujúci Tím'].apply(simplify_team_name)
+    
     def format_score(row):
         if row['Status'] == 'FINISHED':
-            # Skrátime formát skóre na 'X-X' namiesto 'X - X', aby sme ušetrili miesto (5 znakov)
-            return f" {int(row['Domáci Gól'])}-{int(row['Hosťujúci Gól'])} "
+            # Formát X-X (3 znaky)
+            return f"{int(row['Domáci Gól'])}-{int(row['Hosťujúci Gól'])}"
         elif row['Status'] == 'SCHEDULED':
              return "NAPL" 
         return "N/A"
