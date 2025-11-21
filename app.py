@@ -90,9 +90,9 @@ def simplify_team_name(name: str) -> str:
         
     return simple_name.strip()
 
-# --- 2. RETRO CSS ŠTÝL (RESET PADDINGOV NA 0) ---
+# --- 2. RETRO CSS ŠTÝL (FINÁLNA CENTRÁCIA) ---
 def load_retro_style():
-    """Vloží vlastné CSS pre presný Ceefax vzhľad s maximálnou šírkou 38ch a nulovými okrajmi."""
+    """Vloží vlastné CSS pre presný Ceefax vzhľad s vertikálnou centráciou."""
     st.markdown("""
         <style>
         /* Načítanie Ceefax-like fontu */
@@ -110,15 +110,25 @@ def load_retro_style():
             line-height: 1.2; 
             filter: brightness(1.2) contrast(1.1); 
             text-shadow: 1px 1px 3px rgba(255, 255, 255, 0.4); 
+            
+            /* --- VERTKÁLNA CENTRÁCIA (NOVÉ) --- */
+            display: flex;
+            flex-direction: column;
+            justify-content: center; /* Vertikálne vystredenie obsahu */
+            align-items: center;     /* Horizontálne vystredenie obsahu */
+            min-height: 100vh;       /* Zaberá celú výšku obrazovky */
         }
 
-        /* --- AGRESÍVNY MOBILNÝ FIX: NULOVANIE PADDINGOV! --- */
+        /* --- AGRESÍVNY MOBILNÝ FIX: PADDINGY A ZAROVNANIE --- */
         .block-container {
-            padding-top: 5px !important;
+            /* Offset pre Streamlit header (hore) */
+            padding-top: 40px !important; 
             padding-bottom: 5px !important;
-            /* TU VYNÚTIME NULOVÝ PADDING */
+            
+            /* Nulovanie horizontálnych paddingov */
             padding-left: 0px !important; 
             padding-right: 0px !important; 
+            
             min-width: unset !important;
             max-width: 100% !important;
             overflow-x: hidden; 
@@ -133,6 +143,7 @@ def load_retro_style():
             margin-bottom: 5px;
             text-align: center !important; 
             max-width: 38ch; 
+            /* margin: auto už nepotrebujeme, pretože to zabezpečí flexbox, ale pre istotu ho necháme */
             margin-left: auto;
             margin-right: auto;
         }
@@ -142,7 +153,7 @@ def load_retro_style():
             font-family: 'Teletext-L', 'Courier New', monospace;
             font-size: 1.2em; 
             line-height: 1.4;
-            max-width: 38ch; /* 38 znakov */
+            max-width: 38ch; 
             margin-left: auto;
             margin-right: auto;
         }
@@ -172,8 +183,8 @@ def generate_ceefax_matches_html(df: pd.DataFrame) -> str:
     
     # EXTRÉMNE MINIMALISTICKÉ ŠÍRKY (CELKOM 38 ZNAKOV)
     WIDTH_TEAM_HOME = 14   
-    WIDTH_SCORE = 3        # Skóre v minimalistickom formáte: X-X
-    MIN_GAP = 1            # Medzera len 1 znak
+    WIDTH_SCORE = 3        
+    MIN_GAP = 1            
     WIDTH_TEAM_AWAY = 19   
     
     html_output = "<div class='ceefax-results'>"
@@ -211,16 +222,14 @@ def generate_ceefax_matches_html(df: pd.DataFrame) -> str:
     html_output += "</div>"
     return html_output
 
-# --- 4. KONFIGURÁCIA A APLIKÁCIA (ZMENA NADPISOV) ---
+# --- 4. KONFIGURÁCIA A APLIKÁCIA ---
 
 st.set_page_config(page_title="PL Teletext Final", layout="wide")
 load_retro_style()
 
-# !!! ZMENENÉ NADPISY !!!
+# Nadpis a oddeľovač
 st.title("⚽ PREMIER LEAGUE")
 st.markdown("---")
-# Pôvodný st.markdown("## RESULTS SECTION 338") bol odstránený
-
 
 # Načítanie dát
 df_matches = get_premier_league_matches(API_TOKEN)
@@ -246,15 +255,14 @@ with st.sidebar:
 # --- 6. LOGIKA A ZOBRAZENIE ZÁPASOV ---
 
 if selected_matchday:
-    filtered_df = df_matches[df_matches['Matchday'] == selected_matchday].copy()
+    filtered_df = df_matches[filtered_df['Matchday'] == selected_matchday].copy()
     
-    # !!! Aplikácia novej funkcie skracovania názvov !!!
+    # Aplikácia skracovania názvov
     filtered_df['Domáci Tím'] = filtered_df['Domáci Tím'].apply(simplify_team_name)
     filtered_df['Hosťujúci Tím'] = filtered_df['Hosťujúci Tím'].apply(simplify_team_name)
     
     def format_score(row):
         if row['Status'] == 'FINISHED':
-            # Formát X-X (3 znaky)
             return f"{int(row['Domáci Gól'])}-{int(row['Hosťujúci Gól'])}"
         elif row['Status'] == 'SCHEDULED':
              return "NAPL" 
@@ -276,5 +284,4 @@ if selected_matchday:
         st.info(f"Pre Matchday {selected_matchday} neboli nájdené žiadne zápasy.")
 
 # --- 7. Footer ---
-st.markdown("---")
-st.markdown("<span class='ceefax-magenta'>FIXTURES / RESULTS / TABLES SECTION 338</span>", unsafe_allow_html=True)
+# Footer je odstránený
