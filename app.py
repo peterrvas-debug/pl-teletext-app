@@ -12,26 +12,12 @@ API_TOKEN = "65aeeede221f46a08321266a69dee512"
 BASE_URL = "https://api.football-data.org/v4/"
 COMPETITION_ID = "PL"  
 
-# --- JAVASCRIPT PRE ZATVORENIE SIDEBARU (Simulácia ESC) ---
-# Simulácia stlačenia klávesy ESC v rodičovskom okne, ktorá zatvorí sidebar.
-JS_CLOSE_SIDEBAR = """
+# --- JAVASCRIPT PRE ZATVORENIE SIDEBARU (Hash Hack) ---
+# Skript, ktorý mení hash v URL, čo má spoľahlivejšie zatvárať sidebar na mobiloch.
+JS_CHANGE_HASH = """
 <script>
-    // Dôležité: Používame setTimeout, aby sa kód spustil po dokončení vykresľovania.
-    setTimeout(function() {
-        const parentWindow = window.parent || window;
-        
-        // Simulácia stlačenia klávesy ESC (keyCode 27)
-        const event = new KeyboardEvent('keydown', {
-            key: 'Escape',
-            keyCode: 27,
-            code: 'Escape',
-            bubbles: true
-        });
-        
-        // Odoslanie udalosti klávesy do rodičovského okna/dokumentu
-        parentWindow.document.dispatchEvent(event);
-        
-    }, 100); 
+    // Zmena hash v URL rodičovského okna, ktorá by mala vynútiť zatvorenie sidebar
+    window.parent.location.hash = Math.random().toString(36).substring(7);
 </script>
 """
 
@@ -39,14 +25,15 @@ JS_CLOSE_SIDEBAR = """
 
 def close_sidebar_on_change():
     """
-    Nastaví Query Parameter, ktorý signalizuje potrebu zatvoriť sidebar.
-    Použijeme to ako spúšťač pre JS injekciu po rerune.
+    Injektuje JavaScript, ktorý zmení hash v URL a pokúsi sa vynútiť zatvorenie sidebar.
     """
-    # Použijeme hide_sidebar=true ako signál pre hlavnú aplikáciu
-    st.experimental_set_query_params(hide_sidebar="true") 
+    # Injektovanie skriptu (tento sa spustí pri rerune iniciovanom selectboxom)
+    st.markdown(JS_CHANGE_HASH, unsafe_allow_html=True)
+    # Rerun je automaticky spustený zmenou selectboxu,
+    # a zmena hash spustí ďalší rerun, čím sa zvýši šanca na reset UI.
 
 
-# --- OSTATNÉ FUNKCIE (Načítanie dát a CSS zostávajú rovnaké) ---
+# --- OSTATNÉ FUNKCIE (Načítanie dát, CSS a generovanie HTML zostávajú rovnaké) ---
 
 @st.cache_data(ttl=3600) 
 def get_premier_league_matches(api_token: str):
@@ -58,17 +45,14 @@ def get_premier_league_matches(api_token: str):
         response = requests.get(url, headers=headers)
         response.raise_for_status() 
         data = response.json()
-        
     except requests.exceptions.RequestException as e:
         st.error(f"Chyba pri volaní API: {e}")
         st.error("Skontroluj API token a prístup k Premier League dátam.")
         return pd.DataFrame() 
-
     matches = data.get('matches', [])
     if not matches:
         st.info("API nevrátilo žiadne zápasy.")
         return pd.DataFrame()
-
     df = pd.json_normalize(matches)
     df_filtered = df[[
         'matchday', 'homeTeam.name', 'awayTeam.name', 'score.fullTime.home', 
@@ -168,20 +152,6 @@ def generate_ceefax_matches_html(df: pd.DataFrame) -> str:
 st.set_page_config(page_title="PL Teletext Final", layout="wide")
 load_retro_style()
 
-# !!! NOVÁ LOGIKA PRE AUTOMATICKÉ ZATVORENIE SIDEBARU (Simulácia ESC) !!!
-query_params = st.experimental_get_query_params()
-if 'hide_sidebar' in query_params and query_params['hide_sidebar'][0] == 'true':
-    # 1. Injektuj robustný JavaScript pre zatvorenie pomocou ESC
-    components.html(JS_CLOSE_SIDEBAR, height=0)
-    
-    # 2. Odstráň príznak z URL
-    new_params = query_params.copy()
-    del new_params['hide_sidebar']
-    st.experimental_set_query_params(**new_params)
-    
-# --- Koniec novej logiky ---
-
-
 # Nadpis
 st.title("⚽ PREMIER LEAGUE")
 st.markdown("---")
@@ -203,7 +173,7 @@ with st.sidebar:
         matchdays,
         index=len(matchdays) - 1 if matchdays else 0,
         key="retro_select",
-        # Priradenie callbacku, ktorý nastaví Query Parameter
+        # Priradenie novej callback funkcie pre Hash Hack
         on_change=close_sidebar_on_change 
     )
     
