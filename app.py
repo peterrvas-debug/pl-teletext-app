@@ -10,12 +10,12 @@ API_TOKEN = "65aeeede221f46a08321266a69dee512"
 BASE_URL = "https://api.football-data.org/v4/"
 COMPETITION_ID = "PL"  # Kód pre Premier League
 
-# --- CALLBACK FUNKCIA PRE AUTOMATICKÉ ZATVORENIE SIDEBARU ---
+# --- CALLBACK FUNKCIA PRE AUTOMATICKÉ ZATVORENIE SIDEBARU (OPRAVENÁ) ---
 
 def close_sidebar_on_change():
     """
-    Injektuje JavaScript, ktorý programovo zatvorí Streamlit bočný panel.
-    Spustí sa po každej zmene v st.selectbox.
+    Injektuje JavaScript, ktorý programovo zatvorí Streamlit bočný panel
+    bez volania st.rerun().
     """
     js_code = """
         <script>
@@ -28,8 +28,7 @@ def close_sidebar_on_change():
     """
     # Injektovanie skriptu do aplikácie
     st.markdown(js_code, unsafe_allow_html=True)
-    # Požadujeme znovunačítanie, ak sa nezmení stav, aby sa skript spustil
-    st.rerun() 
+    # st.rerun() je odstránené, aby sa predišlo chybe "no-op".
 
 
 # --- 1. FUNKCIA PRE ZÍSKANIE DÁT Z API ---
@@ -270,7 +269,7 @@ with st.sidebar:
         matchdays,
         index=len(matchdays) - 1 if matchdays else 0,
         key="retro_select",
-        # !!! PRIDANIE CALLBACKU PRE AUTOMATICKÉ ZATVORENIE !!!
+        # Priradenie opraveného callbacku
         on_change=close_sidebar_on_change 
     )
     
@@ -281,7 +280,7 @@ with st.sidebar:
 # --- 6. LOGIKA A ZOBRAZENIE ZÁPASOV ---
 
 if selected_matchday:
-    # Opravený filter
+    # Správne filtrovanie DataFrame
     filtered_df = df_matches[df_matches['Matchday'] == selected_matchday].copy()
     
     # Aplikácia skracovania názvov
