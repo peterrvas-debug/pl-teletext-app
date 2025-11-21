@@ -10,6 +10,9 @@ API_TOKEN = "65aeeede221f46a08321266a69dee512"
 BASE_URL = "https://api.football-data.org/v4/"
 COMPETITION_ID = "PL"  # Kód pre Premier League
 
+# Ak si používaš Secret, použij toto namiesto pevného tokenu:
+# API_TOKEN = st.secrets.get("API_TOKEN", "TVOJ_DEFAULT_TOKEN_PRE_LOKAL")
+
 # --- 1. FUNKCIA PRE ZÍSKANIE DÁT Z API ---
 
 @st.cache_data(ttl=3600) # Cache dáta na 1 hodinu
@@ -65,9 +68,9 @@ def get_premier_league_matches(api_token: str):
     
     return df_filtered
 
-# --- 2. RETRO CSS ŠTÝL (ODSTRÁNENÉ OBMEDZENIE ŠÍRKY pre .stApp) ---
+# --- 2. RETRO CSS ŠTÝL (AGRESÍVNE RESETOVANIE PRE MOBIL) ---
 def load_retro_style():
-    """Vloží vlastné CSS pre presný Ceefax vzhľad s čiernym pozadím a väčšou šírkou."""
+    """Vloží vlastné CSS pre presný Ceefax vzhľad s agresívnym resetovaním mobilných paddingov."""
     st.markdown("""
         <style>
         /* Načítanie Ceefax-like fontu z externého zdroja */
@@ -88,10 +91,22 @@ def load_retro_style():
             /* CRT Efekty */
             filter: brightness(1.2) contrast(1.1); 
             text-shadow: 1px 1px 3px rgba(255, 255, 255, 0.4); 
-            
-            /* ODSTRÁNENÉ max-width: 90ch; a margin: 0 auto !important; */
-            /* Zabezpečí, že sa prispôsobí Streamlit wide layoutu */
         }
+
+        /* --- AGRESÍVNY MOBILNÝ FIX --- */
+        /* Nulujeme paddingy hlavného kontajnera (blokového kontajnera) */
+        .block-container {
+            padding-top: 10px !important;
+            padding-bottom: 10px !important;
+            padding-left: 10px !important; /* Minimum padding na okrajoch */
+            padding-right: 10px !important; /* Minimum padding na okrajoch */
+            
+            /* DÔLEŽITÉ: Streamlit má min-width nastavené v default CSS, ktoré ignorujeme */
+            min-width: unset !important;
+            max-width: 100% !important;
+            overflow-x: hidden; /* Skryť, ak by sa náhodou niečo pretlačilo */
+        }
+        /* --- KONIEC FIXU --- */
 
         /* Všetky nadpisy v žltej */
         .stApp h1, .stApp h2, .stApp h3 {
@@ -103,13 +118,12 @@ def load_retro_style():
             text-align: center !important; 
         }
 
-        /* Kontajner pre výsledky (ZACHOVÁVAME PEVNÚ ŠÍRKU PRE ZAROVNANIE) */
+        /* Kontajner pre výsledky (PEVNÁ ŠÍRKA A CENTRÁCIA) */
         .ceefax-results {
             font-family: 'Teletext-L', 'Courier New', monospace;
             font-size: 1.2em; 
             line-height: 1.4;
-            /* TU ZAISTÍME PEVNÚ ŠÍRKU A CENTRÁCIU */
-            max-width: 90ch; 
+            max-width: 90ch; /* Tvoja požadovaná šírka pre rozloženie */
             margin-left: auto;
             margin-right: auto;
         }
@@ -132,24 +146,13 @@ def load_retro_style():
             background-color: #111111; 
         }
         
-        /* Centrácia ostatných prvkov */
-        .stMarkdown {
-            max-width: 90ch; /* Obmedziť šírku aj pre tieto prvky */
-            margin-left: auto;
-            margin-right: auto;
-            text-align: center; 
+        /* Centrácia ostatných prvkov - zameriame ich na 90ch a centrujeme */
+        .stMarkdown div[data-testid^="stMarkdownContainer"] {
+             max-width: 90ch;
+             margin-left: auto !important;
+             margin-right: auto !important;
         }
-        
-        /* Ostatné Streamlit kontajnery musia byť tiež centrované */
-        .block-container {
-            padding-top: 2rem;
-            padding-bottom: 2rem;
-            padding-left: 1rem;
-            padding-right: 1rem;
-            
-            /* Zrušíme defaultné Streamlit obmedzenia šírky */
-            max-width: 100% !important; 
-        }
+
         </style>
     """, unsafe_allow_html=True)
 
@@ -157,13 +160,12 @@ def load_retro_style():
 
 def generate_ceefax_matches_html(df: pd.DataFrame) -> str:
     """Generuje HTML kód pre teletextové zobrazenie zápasov s pevnou šírkou znakov
-    a minimálnymi medzerami, aby sa názvy neprekrývali so skóre.
+    a minimálnymi medzerami.
     """
     
-    # Šírky stĺpcov pre teletext
-    WIDTH_TEAM = 30    # Miesto pre Domáci Tím
-    WIDTH_SCORE = 7    # priestor pre skóre ' X - X '
-    MIN_GAP = 5        # Minimálna medzera medzi tímom a skóre
+    WIDTH_TEAM = 30    
+    WIDTH_SCORE = 7    
+    MIN_GAP = 5        
     
     html_output = "<div class='ceefax-results'>"
     
@@ -174,21 +176,13 @@ def generate_ceefax_matches_html(df: pd.DataFrame) -> str:
         score_text = row['VÝSLEDOK']
         score_color_class = "ceefax-green" if row['Status'] == 'FINISHED' else "ceefax-red"
         
-        # 1. Domáci Tím (Biely)
         home_display = home_team_name.ljust(WIDTH_TEAM)
-        
-        # 2. Skóre (Farebné) - vystredené
         score_display = score_text.center(WIDTH_SCORE) 
-        
-        # 3. Hosťujúci Tím (Žltý) - zarovnané doľava
         away_display = away_team_name.ljust(WIDTH_TEAM)
-        
-        # --- Vytvorenie Medzier (Kombinovaný Reťazec) ---
         
         GAP_1 = ' ' * MIN_GAP
         GAP_2 = ' ' * MIN_GAP
         
-        # Nová línia (30+5+7+5+30 = 77 znakov, max 90ch)
         line = (
             f"<span class='ceefax-white'>{home_display}</span>"
             f"{GAP_1}"
@@ -202,10 +196,9 @@ def generate_ceefax_matches_html(df: pd.DataFrame) -> str:
     html_output += "</div>"
     return html_output
 
-# --- 4. KONFIGURÁCIA A APLIKÁCIA (ZMENA NA wide) ---
+# --- 4. KONFIGURÁCIA A APLIKÁCIA (layout="wide" a CSS fixy) ---
 
-# !!! ZMENA: layout="wide"
-st.set_page_config(page_title="PL Teletext V7", layout="wide")
+st.set_page_config(page_title="PL Teletext V7 Final", layout="wide")
 load_retro_style()
 
 st.title("⚽ BBC FOOTBALL")
