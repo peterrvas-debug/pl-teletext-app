@@ -10,6 +10,28 @@ API_TOKEN = "65aeeede221f46a08321266a69dee512"
 BASE_URL = "https://api.football-data.org/v4/"
 COMPETITION_ID = "PL"  # Kód pre Premier League
 
+# --- CALLBACK FUNKCIA PRE AUTOMATICKÉ ZATVORENIE SIDEBARU ---
+
+def close_sidebar_on_change():
+    """
+    Injektuje JavaScript, ktorý programovo zatvorí Streamlit bočný panel.
+    Spustí sa po každej zmene v st.selectbox.
+    """
+    js_code = """
+        <script>
+            // Vyhľadanie tlačidla s atribútom aria-label="Close sidebar" v rodičovskom okne
+            const closeButton = window.parent.document.querySelector('button[aria-label="Close sidebar"]');
+            if (closeButton) {
+                closeButton.click();
+            }
+        </script>
+    """
+    # Injektovanie skriptu do aplikácie
+    st.markdown(js_code, unsafe_allow_html=True)
+    # Požadujeme znovunačítanie, ak sa nezmení stav, aby sa skript spustil
+    st.rerun() 
+
+
 # --- 1. FUNKCIA PRE ZÍSKANIE DÁT Z API ---
 
 @st.cache_data(ttl=3600) 
@@ -122,7 +144,7 @@ def load_retro_style():
             min-height: 100vh;       
         }
 
-        /* --- AGRESÍVNY MOBILNÝ FIX: NULOVANIE PADDINGOV A OFFSET VRCHNEJ LIŠTY! --- */
+        /* --- AGRESÍVNY MOBILNÝ FIX: PADDINGY A OFFSET VRCHNEJ LIŠTY! --- */
         .block-container {
             /* Offset pre Streamlit header (hore) a odstránenie ľavého/pravého paddingu */
             padding-top: 40px !important; 
@@ -227,7 +249,7 @@ def generate_ceefax_matches_html(df: pd.DataFrame) -> str:
 st.set_page_config(page_title="PL Teletext Final", layout="wide")
 load_retro_style()
 
-# Nadpis (jediný hlavný)
+# Nadpis
 st.title("⚽ PREMIER LEAGUE")
 st.markdown("---")
 
@@ -242,12 +264,16 @@ matchdays = sorted(df_matches[df_matches['Matchday'] > 0]['Matchday'].unique())
 with st.sidebar:
     st.title("⚽ MENU")
     st.markdown("---")
+    
     selected_matchday = st.selectbox(
         "VYBERTE HRACÍ DEŇ:",
         matchdays,
         index=len(matchdays) - 1 if matchdays else 0,
-        key="retro_select"
+        key="retro_select",
+        # !!! PRIDANIE CALLBACKU PRE AUTOMATICKÉ ZATVORENIE !!!
+        on_change=close_sidebar_on_change 
     )
+    
     st.markdown("---")
     st.caption("STRANA 338 | FOOTBALL-DATA.ORG")
 
@@ -255,7 +281,7 @@ with st.sidebar:
 # --- 6. LOGIKA A ZOBRAZENIE ZÁPASOV ---
 
 if selected_matchday:
-    # OPRAVENÝ RIADOK (FIX NameError): Filtrujeme hlavný DataFrame (df_matches)
+    # Opravený filter
     filtered_df = df_matches[df_matches['Matchday'] == selected_matchday].copy()
     
     # Aplikácia skracovania názvov
@@ -284,5 +310,4 @@ if selected_matchday:
     else:
         st.info(f"Pre Matchday {selected_matchday} neboli nájdené žiadne zápasy.")
 
-# --- 7. Footer (Odstránený) ---
-# st.markdown("---") a pätička bola odstránená
+# Footer je odstránený
