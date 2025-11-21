@@ -3,6 +3,9 @@ import pandas as pd
 import requests
 import json
 from datetime import datetime
+# Import pre robustnú manipuláciu s HTML/JS
+import streamlit.components.v1 as components 
+
 
 # --- KONFIGURÁCIA API ---
 # ⚠️ SEM VLOŽ SVOJ SKUTOČNÝ TOKEN
@@ -10,25 +13,29 @@ API_TOKEN = "65aeeede221f46a08321266a69dee512"
 BASE_URL = "https://api.football-data.org/v4/"
 COMPETITION_ID = "PL"  # Kód pre Premier League
 
-# --- CALLBACK FUNKCIA PRE AUTOMATICKÉ ZATVORENIE SIDEBARU (OPRAVENÁ) ---
+
+# --- JAVASCRIPT PRE ZATVORENIE SIDEBARU ---
+# Toto je robustný skript cielený na Streamlit DOM
+JS_CLOSE_SIDEBAR = """
+<script>
+    // Používame setTimeout, aby sa skript spustil po dokončení vykresľovania Streamlitom
+    setTimeout(function() {
+        const closeButton = window.parent.document.querySelector('button[aria-label="Close sidebar"]');
+        if (closeButton) {
+            closeButton.click();
+        }
+    }, 100); 
+</script>
+"""
+
+# --- CALLBACK FUNKCIA PRE AUTOMATICKÉ ZATVORENIE SIDEBARU ---
 
 def close_sidebar_on_change():
     """
-    Injektuje JavaScript, ktorý programovo zatvorí Streamlit bočný panel
-    bez volania st.rerun().
+    Nastaví Query Parameter, ktorý signalizuje potrebu zatvoriť sidebar.
     """
-    js_code = """
-        <script>
-            // Vyhľadanie tlačidla s atribútom aria-label="Close sidebar" v rodičovskom okne
-            const closeButton = window.parent.document.querySelector('button[aria-label="Close sidebar"]');
-            if (closeButton) {
-                closeButton.click();
-            }
-        </script>
-    """
-    # Injektovanie skriptu do aplikácie
-    st.markdown(js_code, unsafe_allow_html=True)
-    # st.rerun() je odstránené, aby sa predišlo chybe "no-op".
+    # Použijeme hide_sidebar=true ako signál pre hlavnú aplikáciu
+    st.experimental_set_query_params(hide_sidebar="true") 
 
 
 # --- 1. FUNKCIA PRE ZÍSKANIE DÁT Z API ---
@@ -39,7 +46,7 @@ def get_premier_league_matches(api_token: str):
     
     endpoint = f"competitions/{COMPETITION_ID}/matches"
     url = BASE_URL + endpoint
-    
+    # ... (ostatná logika načítania dát zostáva rovnaká)
     headers = {
         'X-Auth-Token': api_token
     }
@@ -87,18 +94,17 @@ def get_premier_league_matches(api_token: str):
     return df_filtered
 
 # --- 1.2. FUNKCIA PRE ZJEDNODUŠENIE NÁZVOV TÍMOV ---
+# (Kód zostáva rovnaký)
 
 def simplify_team_name(name: str) -> str:
     """Odstráni bežné, redundantné frázy z názvov tímov pre úsporu miesta."""
     
-    # Špecifické skratky
     if "Manchester United" in name: return "Man Utd"
     if "Manchester City" in name: return "Man City"
     if "Tottenham Hotspur" in name: return "Spurs"
     if "Nottingham Forest" in name: return "Nott'm Forest"
     if "Wolverhampton Wanderers" in name: return "Wolves"
     
-    # Odstránenie bežných prípon
     suffixes = [' FC', ' AFC', ' Athletic', ' Rovers', ' Wanderers', ' Town', ' City', ' United', ' Albion']
     
     simple_name = name
@@ -108,13 +114,14 @@ def simplify_team_name(name: str) -> str:
             if simple_name.startswith('AFC '):
                  simple_name = simple_name[4:].strip()
             
-    # Zjednodušenie špeciálnych znakov
     if ' & ' in simple_name:
         simple_name = simple_name.split(' & ')[0] 
         
     return simple_name.strip()
 
 # --- 2. RETRO CSS ŠTÝL (FINÁLNA CENTRÁCIA A FIXY) ---
+# (Kód zostáva rovnaký)
+
 def load_retro_style():
     """Vloží vlastné CSS pre presný Ceefax vzhľad s vertikálnou centráciou a mobilnými fixmi."""
     st.markdown("""
@@ -198,13 +205,13 @@ def load_retro_style():
     """, unsafe_allow_html=True)
 
 # --- 3. FUNKCIA PRE GENERÁCIU HTML TELETEXTU (ROZLOŽENIE NA 38ch) ---
+# (Kód zostáva rovnaký)
 
 def generate_ceefax_matches_html(df: pd.DataFrame) -> str:
     """Generuje HTML kód pre teletextové zobrazenie zápasov s pevnou šírkou 38ch."""
     
-    # EXTRÉMNE MINIMALISTICKÉ ŠÍRKY (CELKOM 38 ZNAKOV)
     WIDTH_TEAM_HOME = 14   
-    WIDTH_SCORE = 3        # Skóre v minimalistickom formáte: X-X
+    WIDTH_SCORE = 3        
     MIN_GAP = 1            
     WIDTH_TEAM_AWAY = 19   
     
@@ -217,16 +224,10 @@ def generate_ceefax_matches_html(df: pd.DataFrame) -> str:
         score_text = row['VÝSLEDOK']
         score_color_class = "ceefax-green" if row['Status'] == 'FINISHED' else "ceefax-red"
         
-        # 1. Domáci Tím (Biely) - Skrátime na 14 znakov
         home_display = home_team_name[:WIDTH_TEAM_HOME].ljust(WIDTH_TEAM_HOME)
-        
-        # 2. Skóre (Farebné) - vystredené (napr. '1-0')
         score_display = score_text.center(WIDTH_SCORE) 
-        
-        # 3. Hosťujúci Tím (Žltý) - Skrátime a zarovnáme na 19 znakov (maximum)
         away_display = away_team_name[:WIDTH_TEAM_AWAY].ljust(WIDTH_TEAM_AWAY)
         
-        # --- Vytvorenie Medzier ---
         GAP_1 = ' ' * MIN_GAP
         GAP_2 = ' ' * MIN_GAP
         
@@ -247,6 +248,20 @@ def generate_ceefax_matches_html(df: pd.DataFrame) -> str:
 
 st.set_page_config(page_title="PL Teletext Final", layout="wide")
 load_retro_style()
+
+# !!! NOVÁ LOGIKA PRE AUTOMATICKÉ ZATVORENIE SIDEBARU !!!
+query_params = st.experimental_get_query_params()
+if 'hide_sidebar' in query_params and query_params['hide_sidebar'][0] == 'true':
+    # 1. Injektuj robustný JavaScript pre zatvorenie
+    components.html(JS_CLOSE_SIDEBAR, height=0)
+    
+    # 2. Odstráň príznak z URL pre čistotu (a aby sa to neopakovalo)
+    new_params = query_params.copy()
+    del new_params['hide_sidebar']
+    st.experimental_set_query_params(**new_params)
+    
+# --- Koniec novej logiky ---
+
 
 # Nadpis
 st.title("⚽ PREMIER LEAGUE")
@@ -269,7 +284,7 @@ with st.sidebar:
         matchdays,
         index=len(matchdays) - 1 if matchdays else 0,
         key="retro_select",
-        # Priradenie opraveného callbacku
+        # Priradenie novej callback funkcie
         on_change=close_sidebar_on_change 
     )
     
@@ -280,10 +295,8 @@ with st.sidebar:
 # --- 6. LOGIKA A ZOBRAZENIE ZÁPASOV ---
 
 if selected_matchday:
-    # Správne filtrovanie DataFrame
     filtered_df = df_matches[df_matches['Matchday'] == selected_matchday].copy()
     
-    # Aplikácia skracovania názvov
     filtered_df['Domáci Tím'] = filtered_df['Domáci Tím'].apply(simplify_team_name)
     filtered_df['Hosťujúci Tím'] = filtered_df['Hosťujúci Tím'].apply(simplify_team_name)
     
@@ -308,5 +321,3 @@ if selected_matchday:
         
     else:
         st.info(f"Pre Matchday {selected_matchday} neboli nájdené žiadne zápasy.")
-
-# Footer je odstránený
