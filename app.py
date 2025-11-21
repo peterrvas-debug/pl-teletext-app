@@ -15,7 +15,7 @@ COMPETITION_ID = "PL"  # Kód pre Premier League
 @st.cache_data(ttl=3600) 
 def get_premier_league_matches(api_token: str):
     """Načíta všetky zápasy aktuálnej sezóny Premier League z API."""
-    
+    # ... (Kód funkcie get_premier_league_matches zostáva rovnaký) ...
     endpoint = f"competitions/{COMPETITION_ID}/matches"
     url = BASE_URL + endpoint
     
@@ -65,42 +65,38 @@ def get_premier_league_matches(api_token: str):
     
     return df_filtered
 
-# --- NOVÁ FUNKCIA PRE ZJEDNODUŠENIE NÁZVOV TÍMOV ---
+# --- NOVÁ FUNKCIA PRE ZJEDNODUŠENIE NÁZVOV TÍMOV (Zostáva rovnaká) ---
 
 def simplify_team_name(name: str) -> str:
     """Odstráni bežné, redundantné frázy z názvov tímov (napr. FC, AFC, City, United)
     pre úsporu miesta a zlepší čitateľnosť na mobile."""
     
-    # 1. Špecifické skratky pre Premier League (pretože inak by sa skrátili rovnako)
+    # 1. Špecifické skratky
     if "Manchester United" in name: return "Man Utd"
     if "Manchester City" in name: return "Man City"
     if "Tottenham Hotspur" in name: return "Spurs"
     if "Nottingham Forest" in name: return "Nott'm Forest"
     if "Wolverhampton Wanderers" in name: return "Wolves"
     
-    # 2. Odstránenie bežných prípon a redundantných slov
+    # 2. Odstránenie bežných prípon
     suffixes = [' FC', ' AFC', ' Athletic', ' Rovers', ' Wanderers', ' Town', ' City', ' United', ' Albion']
     
     simple_name = name
     for suffix in suffixes:
-        # POUŽÍVAME case-insensitive kontrolu (s lower() pre istotu, ak API vráti iné formáty)
         if simple_name.lower().endswith(suffix.lower()):
-            # Odstránime príponu
             simple_name = simple_name[:-len(suffix)].strip()
-            # Ak skrátený názov začína 'AFC ', odstránime aj to (napr. pre AFC Bournemouth)
             if simple_name.startswith('AFC '):
                  simple_name = simple_name[4:].strip()
             
     # 3. Zjednodušenie špeciálnych znakov
     if ' & ' in simple_name:
-        # Brighton & Hove Albion -> Brighton
         simple_name = simple_name.split(' & ')[0] 
         
     return simple_name.strip()
 
-# --- 2. RETRO CSS ŠTÝL (ZACHOVANÉ 40ch NA MOBIL) ---
+# --- 2. RETRO CSS ŠTÝL (ZMENENÁ ŠÍRKA NA 38ch) ---
 def load_retro_style():
-    """Vloží vlastné CSS pre presný Ceefax vzhľad s maximálnou šírkou 40ch."""
+    """Vloží vlastné CSS pre presný Ceefax vzhľad s maximálnou šírkou 38ch."""
     st.markdown("""
         <style>
         /* Načítanie Ceefax-like fontu z externého zdroja */
@@ -122,10 +118,11 @@ def load_retro_style():
 
         /* --- AGRESÍVNY MOBILNÝ FIX --- */
         .block-container {
-            padding-top: 10px !important;
-            padding-bottom: 10px !important;
-            padding-left: 10px !important; 
-            padding-right: 10px !important; 
+            /* Minimalizujeme paddingy, aby sa obsah naozaj zmestil */
+            padding-top: 5px !important;
+            padding-bottom: 5px !important;
+            padding-left: 5px !important; 
+            padding-right: 5px !important; 
             min-width: unset !important;
             max-width: 100% !important;
             overflow-x: hidden; 
@@ -139,7 +136,7 @@ def load_retro_style():
             padding-bottom: 2px;
             margin-bottom: 5px;
             text-align: center !important; 
-            max-width: 40ch; 
+            max-width: 38ch; /* NOVÁ EXTRÉMNA ŠÍRKA */
             margin-left: auto;
             margin-right: auto;
         }
@@ -149,7 +146,7 @@ def load_retro_style():
             font-family: 'Teletext-L', 'Courier New', monospace;
             font-size: 1.2em; 
             line-height: 1.4;
-            max-width: 40ch; 
+            max-width: 38ch; /* ZMENA Z 40ch na 38ch */
             margin-left: auto;
             margin-right: auto;
         }
@@ -162,7 +159,7 @@ def load_retro_style():
 
         /* Ostatné prvky */
         .stMarkdown div[data-testid^="stMarkdownContainer"] {
-             max-width: 40ch; 
+             max-width: 38ch; /* NOVÁ EXTRÉMNA ŠÍRKA */
              margin-left: auto !important;
              margin-right: auto !important;
         }
@@ -172,16 +169,18 @@ def load_retro_style():
         </style>
     """, unsafe_allow_html=True)
 
-# --- 3. FUNKCIA PRE GENERÁCIU HTML TELETEXTU (ROZLOŽENIE NA 40ch) ---
+# --- 3. FUNKCIA PRE GENERÁCIU HTML TELETEXTU (ROZLOŽENIE NA 38ch) ---
 
 def generate_ceefax_matches_html(df: pd.DataFrame) -> str:
-    """Generuje HTML kód pre teletextové zobrazenie zápasov s pevnou šírkou 40ch."""
+    """Generuje HTML kód pre teletextové zobrazenie zápasov s pevnou šírkou 38ch."""
     
-    # EXTRÉMNE MINIMALISTICKÉ ŠÍRKY (CELKOM 40 ZNAKOV)
-    WIDTH_TEAM_HOME = 16   
+    # NOVÉ EXTRÉMNE MINIMALISTICKÉ ŠÍRKY (CELKOM 38 ZNAKOV)
+    WIDTH_TEAM_HOME = 14   
     WIDTH_SCORE = 3        # Skóre v minimalistickom formáte: X-X
     MIN_GAP = 1            # Medzera len 1 znak
     WIDTH_TEAM_AWAY = 19   
+    
+    # Kontrola: 14 + 1 + 3 + 1 + 19 = 38
     
     html_output = "<div class='ceefax-results'>"
     
@@ -192,13 +191,13 @@ def generate_ceefax_matches_html(df: pd.DataFrame) -> str:
         score_text = row['VÝSLEDOK']
         score_color_class = "ceefax-green" if row['Status'] == 'FINISHED' else "ceefax-red"
         
-        # 1. Domáci Tím (Biely) - Skrátime a zarovnáme na 16 znakov
+        # 1. Domáci Tím (Biely) - Skrátime na 14 znakov
         home_display = home_team_name[:WIDTH_TEAM_HOME].ljust(WIDTH_TEAM_HOME)
         
         # 2. Skóre (Farebné) - vystredené (napr. '1-0')
         score_display = score_text.center(WIDTH_SCORE) 
         
-        # 3. Hosťujúci Tím (Žltý) - Skrátime a zarovnáme na 19 znakov
+        # 3. Hosťujúci Tím (Žltý) - Skrátime a zarovnáme na 19 znakov (maximum)
         away_display = away_team_name[:WIDTH_TEAM_AWAY].ljust(WIDTH_TEAM_AWAY)
         
         # --- Vytvorenie Medzier ---
@@ -220,7 +219,7 @@ def generate_ceefax_matches_html(df: pd.DataFrame) -> str:
 
 # --- 4. KONFIGURÁCIA A APLIKÁCIA ---
 
-st.set_page_config(page_title="PL Teletext Ultra Mobile", layout="wide")
+st.set_page_config(page_title="PL Teletext Ultra Mobile 2", layout="wide")
 load_retro_style()
 
 st.title("⚽ BBC FOOTBALL")
